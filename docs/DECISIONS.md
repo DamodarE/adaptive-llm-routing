@@ -42,6 +42,17 @@ router → learned router, with real accuracy-vs-compute table.
 ablations/engineering polish add scope risk without changing the core
 contribution.
 
+## 2026-08-09 — Library: transformers (not vllm) for Phase 1
+**Decision:** Use `transformers` for model loading/inference in Phase 1.
+**Why:** Simpler setup and debugging while getting the environment working.
+**Revisit:** Reconsider `vllm` at Phase 2 for throughput once running the
+full MATH-500 benchmark makes inference speed matter.
+
+## 2026-08-09 — Compute: Kaggle T4x2 (not single T4)
+**Decision:** Use Kaggle's T4x2 accelerator setting, not a single T4.
+**Why:** The 7B model is ~15GB in FP16, which barely fits a single 16GB T4
+with no headroom left for inference (KV cache, activations).
+
 ---
 
 <!-- Add new entries above this line, newest at top or bottom — pick one and
