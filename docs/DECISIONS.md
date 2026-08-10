@@ -35,13 +35,6 @@ application running in parallel for larger-scale needs.
 **Why:** No approval wait blocks Phase 0-2 work; PACE is for headroom on
 Phase 5+ stretch goals (quantization ablations).
 
-## 2026-08-07 — Scope: Phases 0-4 are "done," 5-7 are stretch
-**Decision:** Hard bar for done = research design → baselines → heuristic
-router → learned router, with real accuracy-vs-compute table.
-**Why:** Resume timeline matters more than exhaustiveness. Quantization/full
-ablations/engineering polish add scope risk without changing the core
-contribution.
-
 ## 2026-08-09 — Library: transformers (not vllm) for Phase 1
 **Decision:** Use `transformers` for model loading/inference in Phase 1.
 **Why:** Simpler setup and debugging while getting the environment working.
@@ -52,6 +45,14 @@ full MATH-500 benchmark makes inference speed matter.
 **Decision:** Use Kaggle's T4x2 accelerator setting, not a single T4.
 **Why:** The 7B model is ~15GB in FP16, which barely fits a single 16GB T4
 with no headroom left for inference (KV cache, activations).
+
+## 2026-08-09 — Phase 1 sanity check — passed.
+Both Qwen2.5-Math models (1.5B, 7B) loaded successfully via `transformers`
+with `device_map="auto"` on Kaggle T4x2, split automatically across GPUs by
+Accelerate. Both correctly solved the test problem (2x+5=17 -> x=6). Peak
+memory: 7B model used 13.03GB/13.10GB on GPU 0, 4.06GB/4.10GB on GPU 1 —
+comfortable headroom, no OOM risk observed. Confirms environment is ready
+for Phase 2.
 
 ---
 
