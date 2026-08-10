@@ -4,8 +4,8 @@ Cascade system that routes math problems to a small model (Qwen2.5-Math-1.5B)
 or escalates to a large model (Qwen2.5-Math-7B) based on a confidence
 signal, trading a small accuracy loss for large compute savings.
 
-- Full design: [`PROJECT_PLAN.md`](PROJECT_PLAN.md)
-- Why choices were made: [`DECISIONS.md`](DECISIONS.md)
+- Full design: [`PROJECT_PLAN.md`](docs/PROJECT_PLAN.md)
+- Why choices were made: [`DECISIONS.md`](docs/DECISIONS.md)
 
 ## Structure
 ```
