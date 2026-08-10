@@ -54,6 +54,22 @@ memory: 7B model used 13.03GB/13.10GB on GPU 0, 4.06GB/4.10GB on GPU 1 —
 comfortable headroom, no OOM risk observed. Confirms environment is ready
 for Phase 2.
 
+## 2026-08-10 — Grading: math-verify with explicit LaTeX-environment wrapping
+**Decision:** Wrap both gold and predicted answers in `$...$` before calling
+`math_verify.parse`/`verify`, instead of passing raw strings.
+**Why:** math-verify has native support for tuples, intervals, and finite
+sets (see its `grader.py` and README's set-theory example) — no custom
+multi-value comparator needed. But its LaTeX extraction only activates
+inside a LaTeX environment delimiter; the README states "the latex must be
+placed in latex environment to be parsable." Unwrapped strings risk falling
+through to plain-expression extraction and mis-grading multi-value answers.
+**Verification status:** Confirmed by reading math-verify's GitHub README
+and source (native tuple/set/interval comparison in `grader.py`, LaTeX
+delimiter requirement stated in the README). Not yet confirmed by running
+it — this environment has Python 3.9 and math-verify requires >=3.10.
+Needs a smoke test against real MATH-500 tuple/interval answers (e.g. on
+Kaggle/PACE) before trusting it for reported results.
+
 ---
 
 <!-- Add new entries above this line, newest at top or bottom — pick one and
