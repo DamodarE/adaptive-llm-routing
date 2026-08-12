@@ -130,6 +130,35 @@ matches its published benchmark.
 **Next:** Run the same pipeline on the full MATH-500 set (n=500) to get
 the final Phase 2 baseline table.
 
+## 2026-08-12 — Phase 2 baseline complete (n=500): final accuracy-vs-compute numbers
+**Result:** Full MATH-500 baseline run (vllm, sequential for small model,
+tensor_parallel_size=2 for large model, math-verify grading):
+- Qwen2.5-Math-1.5B-Instruct: 72.8% (364/500), load 35.8s, gen 143.3s,
+  mean latency 0.29s/problem
+- Qwen2.5-Math-7B-Instruct: 79.0% (395/500), load 55.7s, gen 275.0s,
+  mean latency 0.55s/problem
+- Oracle (best of either model per-problem): 83.2% (416/500)
+
+**Comparison to n=50 pilot:** all three numbers moved down slightly from
+the 50-problem estimate (76%→72.8%, 84%→79.0%, 88%→83.2%), but the
+qualitative story held — a consistent ~6-point gap between models and a
+real oracle lift (4.2 points) over the large-only baseline.
+
+**Sanity check:** 7B result (79.0%) is in the right neighborhood of its
+published MATH CoT accuracy (83.6%) — close enough to trust the pipeline;
+gap likely attributable to normal variance, MATH-500 vs full MATH test set
+differences, or minor prompt/parsing differences, not a pipeline bug.
+
+**Decision:** This closes the open risk in PROJECT_PLAN.md §8 (1.5B CoT
+accuracy on MATH was previously unpublished). The accuracy gap and oracle
+lift are both large enough to justify the routing/cascade approach — no
+fallback to the non-math-specialized model pair needed. This is the
+official Phase 2 baseline table (small-only, large-only, oracle) — the
+first entry in what becomes the accuracy-vs-compute resume table.
+
+**Phase 2 status: COMPLETE.** Next: Phase 3, heuristic/confidence-threshold
+router.
+
 ---
 
 <!-- Add new entries above this line, newest at top or bottom — pick one and

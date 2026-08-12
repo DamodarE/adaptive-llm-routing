@@ -64,11 +64,13 @@ planned for Phase 3 (token probability, entropy, answer formatting).
 **Known unknown:** the 7B model's CoT scores are published (95.2% GSM8K,
 83.6% MATH). The 1.5B model's plain-CoT score is not — its only published
 number (~80% MATH) uses tool-integrated reasoning, which we won't be using.
-**Phase 2 will produce the real number.** If the CoT accuracy gap between
-1.5B and 7B on MATH-500 turns out too small to give routing anything
-meaningful to do, the fallback is the non-math-specialized pair
-(Qwen2.5-1.5B-Instruct / Qwen2.5-7B-Instruct), which trades a lower accuracy
-ceiling for a likely larger gap.
+**Phase 2's full MATH-500 run (n=500) produced the real number:** 1.5B CoT
+accuracy is 72.8% (364/500), vs. 7B's 79.0% (395/500) — a ~6-point gap,
+confirmed large enough to proceed with this model pair. If the CoT accuracy
+gap between 1.5B and 7B on MATH-500 had turned out too small to give
+routing anything meaningful to do, the fallback would have been the
+non-math-specialized pair (Qwen2.5-1.5B-Instruct / Qwen2.5-7B-Instruct),
+which trades a lower accuracy ceiling for a likely larger gap — not needed.
 
 ## 4. Dataset
 
@@ -141,16 +143,16 @@ Phase 4 is solid.
 |---|---|
 | 0 | This document |
 | 1 | Reproducible environment (Kaggle now, PACE once access clears) |
-| 2 | Baselines: small-only, large-only, oracle — first benchmark table |
+| 2 | Baselines: small-only, large-only, oracle — first benchmark table — COMPLETE |
 | 3 | Heuristic/confidence-threshold router — first accuracy-vs-compute curve |
 | 4 | Learned router (lightweight classifier), compared against the heuristic baseline — including honest analysis if it doesn't win |
 | 5–7 | Stretch: quantization ablations, full experiment suite, repo polish |
 
 ## 8. Open Risks
 
-- **1.5B CoT accuracy unknown until Phase 2** — determines whether the
-  chosen model pair gives routing enough headroom to be interesting (see
-  fallback in §3).
+- **1.5B CoT accuracy unknown until Phase 2 — RESOLVED.** See
+  docs/DECISIONS.md, 2026-08-12 entry ("Phase 2 baseline complete") for
+  full numbers.
 - **PACE access timing** — mitigated by starting on Kaggle immediately in
   parallel; nothing in Phases 0–2 blocks on PACE clearing.
 - **MATH-500 grading correctness** — symbolic equivalence checking is
