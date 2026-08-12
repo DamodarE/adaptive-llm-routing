@@ -65,10 +65,42 @@ placed in latex environment to be parsable." Unwrapped strings risk falling
 through to plain-expression extraction and mis-grading multi-value answers.
 **Verification status:** Confirmed by reading math-verify's GitHub README
 and source (native tuple/set/interval comparison in `grader.py`, LaTeX
-delimiter requirement stated in the README). Not yet confirmed by running
-it — this environment has Python 3.9 and math-verify requires >=3.10.
-Needs a smoke test against real MATH-500 tuple/interval answers (e.g. on
-Kaggle/PACE) before trusting it for reported results.
+delimiter requirement stated in the README), and now also empirically —
+see 2026-08-11 entry below.
+
+## 2026-08-11 — Phase 2 pilot script: local dry-run (no GPU/vllm available)
+**What was verified, and how:** dev machine is macOS/arm64 with no CUDA, so
+`notebooks/pilot.py`'s actual vllm inference could not be run here. Instead,
+set up an isolated Python 3.11 venv (via Homebrew, local machine has 3.9 by
+default) and exercised every non-inference part of the pipeline against
+real data:
+- `load_dataset("HuggingFaceH4/MATH-500")` — loads, single `test` split,
+  500 rows, matches expected columns.
+- `extract_boxed_answer` — passes hand-written cases including nested
+  braces (`\boxed{\frac{1}{2}}`) and multiple `\boxed{}` occurrences
+  (last one wins).
+- `grade_answer` (from `src/grading.py`) — tested against a real MATH-500 tuple
+  answer (`\left( 3, \frac{\pi}{2} \right)`, problem `test/precalculus/807`):
+  correctly matches equivalent notations, correctly rejects a wrong
+  component. **This empirically confirms the tuple/interval support claimed
+  in the 2026-08-10 entry above**, closing out that entry's "not yet run"
+  caveat.
+- Qwen2.5-Math-1.5B/7B-Instruct tokenizers, via `apply_chat_template` — both
+  inject a default system message ("Please reason step by step, and put
+  your final answer within \boxed{}.") when none is given. The pilot script
+  originally appended that same instruction again in the user turn;
+  removed the duplicate.
+**One finding, not fixed:** `math-verify`'s numeric comparison has a
+precision tolerance tied to the predicted value's own decimal precision —
+`grade_answer("\frac{14}{3}", "4.666666")` (6 truncated decimals) is
+`False`, but `grade_answer("\frac{14}{3}", "4.6666667")` (7 digits) is
+`True`. This is math-verify's own default behavior, not a bug in our
+wrapper — flagging in case truncated-decimal model outputs cause
+unexpected misses during the real Phase 2 run.
+**Not verified by this dry-run:** vllm install/behavior, actual model
+inference/generation quality, GPU memory behavior under vllm (as opposed
+to the `transformers` numbers from Phase 1). Still needs a real run on
+Kaggle T4x2.
 
 ---
 
