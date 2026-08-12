@@ -7,14 +7,22 @@
 # process's visible devices; that context can't be remapped mid-process, and
 # running two LLM() instances concurrently in one process is not a
 # supported/reliable vllm usage pattern. So each model gets its own process
-# invocation, pinned to its own GPU via CUDA_VISIBLE_DEVICES set *before*
-# the process starts -- not two engines coexisting in one process.
+# invocation, run sequentially (not concurrently) -- not two engines
+# coexisting in one process.
+#
+# The two models don't have the same GPU footprint. The 1.5B model fits
+# comfortably on one T4, so it's pinned to a single GPU via
+# CUDA_VISIBLE_DEVICES. The 7B model does not -- Phase 1's own measurements
+# (docs/DECISIONS.md, 2026-08-09) show it split ~13GB/~4GB across both GPUs
+# under transformers' device_map="auto", so under vllm it needs
+# tensor_parallel_size=2 and both GPUs visible; a single-GPU invocation for
+# it will fail.
 #
 # Kaggle cells:
 #   !pip install -q vllm datasets
 #   !pip install -q "math-verify[antlr4_13_2]"
 #   !CUDA_VISIBLE_DEVICES=0 python notebooks/pilot.py --model small --gpu 0
-#   !CUDA_VISIBLE_DEVICES=1 python notebooks/pilot.py --model large --gpu 1
+#   !CUDA_VISIBLE_DEVICES=0,1 python notebooks/pilot.py --model large --gpu 0,1
 #
 # Each invocation writes results/pilot_{model}.json independently; run both
 # before comparing them.
@@ -86,7 +94,12 @@ def run_model(model_key: str, n: int, out_path: Path):
             )
         )
 
-    llm = LLM(model=model_name, gpu_memory_utilization=0.85, dtype="float16")
+    llm = LLM(
+        model=model_name,
+        gpu_memory_utilization=0.85,
+        dtype="float16",
+        tensor_parallel_size=2 if model_key == "large" else 1,
+    )
     sampling_params = SamplingParams(temperature=0, max_tokens=1024)
     outputs = llm.generate(prompts, sampling_params)
 
@@ -121,7 +134,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", choices=MODELS.keys(), required=True)
     parser.add_argument("--gpu", required=True, help="informational only; "
-                         "set CUDA_VISIBLE_DEVICES before invoking this script")
+                         "must match whatever CUDA_VISIBLE_DEVICES was set to "
+                         "before invoking this script (e.g. '0' for --model "
+                         "small, '0,1' for --model large)")
     parser.add_argument("--n", type=int, default=50)
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
