@@ -102,6 +102,34 @@ inference/generation quality, GPU memory behavior under vllm (as opposed
 to the `transformers` numbers from Phase 1). Still needs a real run on
 Kaggle T4x2.
 
+## 2026-08-12 — Phase 2 pilot (n=50): real accuracy gap confirmed, routing looks worthwhile
+**Result:** Ran the full pilot pipeline (vllm, sequential + TP=2 for large
+model, math-verify grading) on 50 MATH-500 problems for both models:
+- Qwen2.5-Math-1.5B-Instruct: 76.0% (38/50)
+- Qwen2.5-Math-7B-Instruct: 84.0% (42/50)
+- Oracle (best of either model per-problem): 88.0% (44/50)
+
+**Why this matters:** This resolves the open risk flagged in PROJECT_PLAN.md §8
+— the 1.5B model's plain-CoT accuracy on MATH was previously unpublished
+(only tool-integrated-reasoning numbers existed). Now measured directly.
+The 7B result (84%) closely matches its published MATH CoT accuracy
+(83.6%), which is a good sanity check that the pipeline (generation,
+extraction, grading) is measuring correctly.
+
+**Decision:** The 8-point accuracy gap between models, and the 4-point
+oracle lift over the large-only baseline, together indicate the accuracy
+gap is large enough to make cascade routing worthwhile. No need to fall
+back to the non-math-specialized model pair (the contingency noted in
+PROJECT_PLAN.md §3). Proceeding with the current model pair.
+
+**Caveat:** n=50 is a small sample; exact percentages may shift on the
+full 500-problem run, though the qualitative conclusion (meaningful gap
+exists) is expected to hold given how closely the 7B number already
+matches its published benchmark.
+
+**Next:** Run the same pipeline on the full MATH-500 set (n=500) to get
+the final Phase 2 baseline table.
+
 ---
 
 <!-- Add new entries above this line, newest at top or bottom — pick one and
