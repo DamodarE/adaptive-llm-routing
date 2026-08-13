@@ -1,0 +1,16 @@
+{
+  "label": "P(small model wrong) -- positive coefficient = pushes toward WRONG",
+  "intercept": -1.2080680935893569,
+  "coefficients_standardized": {
+    "mean_logprob": -0.8991243942418553,
+    "min_logprob": 0.14591402637615697,
+    "format_validity": -1.3604929386783229,
+    "response_length": 1.0799165197827352
+  },
+  "ranked_by_magnitude": [
+    "format_validity",
+    "response_length",
+    "mean_logprob",
+    "min_logprob"
+  ]
+}

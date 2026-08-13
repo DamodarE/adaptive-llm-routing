@@ -6,3 +6,4 @@ datasets
 transformers
 math-verify[antlr4_13_2]
 matplotlib
+scikit-learn

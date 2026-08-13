@@ -169,6 +169,109 @@ first entry in what becomes the accuracy-vs-compute resume table.
 **Phase 2 status: COMPLETE.** Next: Phase 3, heuristic/confidence-threshold
 router.
 
+## 2026-08-13 — Held-out train/test split added; Phase 3 re-evaluated honestly
+**Decision:** Split the 500 MATH-500 problems into a 350-problem train set
+and a 150-problem held-out set (`notebooks/make_split.py`, seed=42,
+stratified by subject via largest-remainder apportionment so each split's
+subject mix matches the full set), saved to
+`results/train_test_split.json` so it's reproducible and reused by both
+Phase 3's re-evaluation and Phase 4's learned router.
+**Why:** the last review (2026-08-12/13) flagged that every number in
+`phase3_sweep.csv` was fit (percentile thresholds) and evaluated on the
+same 500 problems — no held-out validation anywhere in the pipeline. That
+needed fixing before Phase 4, where training a classifier with zero
+held-out evaluation would be a much more serious version of the same
+problem.
+**What changed when re-evaluated honestly:** `notebooks/router_sweep_heldout.py`
+selects thresholds from the train split only, then evaluates on the
+held-out 150 (`results/phase3_sweep_heldout.csv`, does not overwrite the
+original). Raw held-out accuracy came out *higher* than the full-500
+numbers at every comparable escalation rate (e.g. mean_logprob at ~20%
+escalation: 76.4% full-500 vs. 80.0% held-out) — but that is **not**
+evidence the thresholds generalize better. The held-out 150 problems
+happen to have an easier baseline purely from which problems landed in
+that split (large-only accuracy on held-out alone is 80.7% vs. 79.0% on
+the full 500, oracle 85.3% vs. 83.4% — before any thresholding at all).
+Normalizing for this (reporting lift over each split's own large-only
+baseline instead of raw accuracy) is the apples-to-apples comparison:
+mean_logprob's lift at ~20% escalation is -2.6% on full-500 vs. -0.7% on
+held-out; at ~50%, -0.6% vs. +0.7%. min_logprob is similar. **Conclusion:
+no evidence of meaningful threshold overfitting** — held-out lift is
+comparable to, if anything marginally better than, the original
+fit-and-eval-on-same-data numbers. This isn't a strong guarantee either
+way, though: n=150 is small enough that these ~1-2 point deltas are within
+plausible sampling noise, not a precise measurement.
+**Next:** Phase 4's learned router will train on the 350-problem train
+split and report final numbers on the same 150-problem held-out split, so
+train/test discipline is consistent with what's here.
+
+## 2026-08-14 — Phase 4 learned router: doesn't beat the heuristic, reporting honestly
+**What was built:** a logistic regression (`sklearn`, `StandardScaler` +
+default L2) predicting P(small model wrong), trained on the 350-problem
+train split only (`notebooks/train_learned_router.py`). Features:
+`mean_logprob`, `min_logprob`, `format_validity`, and `response_length`
+(word count of the small model's generation — a free, cheap feature already
+available in `small_with_logprobs.json`). Its output probability was
+threshold-swept the same way as the heuristics (percentiles of the TRAIN
+distribution, evaluated on the 150-problem held-out split), written to
+`results/phase4_learned_router.csv`. A sanity check (mean predicted
+confidence must be higher on problems the small model actually got right)
+passed on both splits before trusting any downstream number — train: 0.851
+vs. 0.406; held-out: 0.851 vs. 0.481.
+
+**Result — reported honestly per PROJECT_PLAN.md's framing commitment: the
+learned router does not beat the simple mean_logprob heuristic on held-out
+data.** At matched escalation rates (all held-out, n=150, large-only
+baseline 80.7%, oracle 85.3%):
+
+| ~target escalation | heuristic (mean_logprob) | learned router |
+|---|---|---|
+| 20% | 80.0% (@20.7%) | 78.0% (@18.7%) |
+| 30% | 79.3% (@28.7%) | 78.0% (@30.7%) |
+| 50% | 81.3% (@49.3%) | 79.3% (@48.0%) |
+
+The learned router loses by roughly 1.3–2.0 points at every matched rate
+checked, and the full curve (`results/phase4_comparison_plot.png`) shows
+mean_logprob at or above the learned router across nearly the whole
+escalation range. Plausible explanation, not confirmed: n=350 training
+examples for a 4-feature model is enough to learn *something* but not much
+more than what the single best heuristic feature already captures, and the
+logistic regression doesn't obviously buy anything a simple threshold on
+`mean_logprob` didn't already have.
+
+**Coefficients (standardized scale, so magnitudes are comparable across
+features with very different raw units) — the quotable finding:**
+
+| feature | coefficient | direction |
+|---|---|---|
+| `format_validity` | -1.360 | strongest predictor — a parseable `\boxed{}` answer means much more likely correct |
+| `response_length` | +1.080 | longer generations are more likely wrong |
+| `mean_logprob` | -0.899 | higher (more confident) average token logprob means more likely correct, as expected |
+| `min_logprob` | +0.146 | **counterintuitive sign** — see below |
+
+`min_logprob`'s positive coefficient looks backwards (a more-confident
+worst-token should mean *less* likely wrong) until you check it in
+isolation: `min_logprob`'s own univariate logistic coefficient is -0.467
+(correctly signed) and its univariate correlation with wrongness is -0.218,
+both in the expected direction. It flips sign only once `mean_logprob` is
+also in the model — the two are correlated at r=0.525, `mean_logprob` has
+the stronger standalone relationship with correctness, and it absorbs most
+of their shared signal, leaving `min_logprob` a slightly reversed
+"leftover" coefficient. This is a real, verified multicollinearity effect
+(checked directly, not assumed), not a bug — but it's a good example of why
+a coefficient's sign in a multivariate model can't be read the same way as
+a univariate correlation.
+
+**Decision:** ship the heuristic (mean_logprob threshold) as the
+recommended router for now, not the learned model — it's simpler, cheaper,
+and currently more accurate on held-out data. Keep the learned-router code
+and this result in the project as evidence of following through on the
+plan's "honest analysis if it doesn't win" commitment, not as the
+recommended approach. Revisit if `level`/`subject` features get added
+(currently not captured) or if n grows beyond MATH-500's 500 problems —
+a 4-feature model trained on 350 examples may simply not have enough
+signal or data to beat a well-chosen single heuristic yet.
+
 ---
 
 <!-- Add new entries above this line, newest at top or bottom — pick one and
