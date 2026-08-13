@@ -34,14 +34,22 @@ further than that produces almost no additional accuracy for the rest of
 the compute spent — see `results/phase3_sweep.csv` for the full sweep and
 `docs/DECISIONS.md` (2026-08-12 entries) for the run-by-run writeup.
 
-**Known limitations, stated plainly:** all thresholds above are chosen and
-evaluated on the same 500 problems — there is no held-out split yet, so
-these specific numbers are not validated on unseen data. `level`
-(difficulty) isn't currently captured in the result files, only `subject`
-(recoverable from `unique_id`), so a difficulty-stratified breakdown isn't
-possible yet either. Phase 4 (a learned router, with proper train/held-out
-discipline) is the current next step — see `docs/PROJECT_PLAN.md` §7 for
-phase status.
+**Methodology note:** the table and plot above are the full-500 numbers
+(thresholds chosen and evaluated on the same 500 problems). A 350/150
+train/held-out split (`results/train_test_split.json`, seed=42, stratified
+by subject) was added so Phase 3 could also be checked honestly on unseen
+data — see `docs/DECISIONS.md` (2026-08-13) for the held-out re-evaluation
+and what did (and didn't) change. Short version: no evidence of meaningful
+threshold overfitting, though the 150-problem held-out set is small enough
+that this isn't a strong guarantee. Phase 4's learned router will train on
+the 350-problem split and report final numbers on the 150-problem held-out
+split, for consistency.
+
+**Known limitations, stated plainly:** `level` (difficulty) isn't currently
+captured in the result files, only `subject` (recoverable from
+`unique_id`), so a difficulty-stratified breakdown isn't possible yet.
+Phase 4 (a learned router) is the current next step — see
+`docs/PROJECT_PLAN.md` §7 for phase status.
 
 ## Reproducing the Experiments
 
@@ -128,12 +136,36 @@ Also no GPU needed. Reads `results/phase3_sweep.csv` (and the pilot JSONs,
 if present, for the small-only/large-only/oracle reference lines) and
 writes `results/router_sweep_plot.png`.
 
+### 9. Create the train/held-out split
+
+```bash
+!python notebooks/make_split.py
+```
+
+No GPU needed. Reads `results/pilot_small.json` for the 500 `unique_id`s,
+splits them 350/150 (seed=42, stratified by subject), and writes
+`results/train_test_split.json`. Deterministic — rerunning it reproduces
+the exact same split.
+
+### 10. Re-evaluate Phase 3 on held-out data
+
+```bash
+!python notebooks/router_sweep_heldout.py
+```
+
+No GPU needed. Selects thresholds using only the 350-problem train split,
+evaluates them on the 150-problem held-out split, prints a comparison
+against the full-500 numbers (normalized for each split's own baseline —
+see `docs/DECISIONS.md`, 2026-08-13), and writes
+`results/phase3_sweep_heldout.csv`. Does not overwrite
+`results/phase3_sweep.csv`.
+
 ## Notes
 
-- Steps 4–8 must run in order — each later step reads a file written by an
-  earlier one, and `router_sweep.py`/`plot_router_sweep.py` will exit
-  cleanly with a message telling you which input file is missing rather
-  than crashing.
+- Steps 4–10 must run in order — each later step reads a file written by
+  an earlier one, and any script that reads a prior step's output will
+  exit cleanly with a message telling you which input file is missing
+  rather than crashing.
 - Exact package versions weren't pinned or recorded from the Kaggle runs
   behind the numbers above — `requirements.txt` lists packages, not pinned
   versions. If you rerun this and get different results, that's the first
@@ -157,7 +189,9 @@ adaptive-llm-routing/
 │   ├── compare_pilot.py             # Small vs. large comparison table + oracle
 │   ├── rerun_small_with_logprobs.py # Small model rerun with per-token logprobs
 │   ├── router_sweep.py              # Threshold sweep over confidence signals
-│   └── plot_router_sweep.py         # Plots results/phase3_sweep.csv
+│   ├── plot_router_sweep.py         # Plots results/phase3_sweep.csv
+│   ├── make_split.py                # Reproducible 350/150 train/held-out split
+│   └── router_sweep_heldout.py      # Phase 3, fit on train / evaluated on held-out
 │
 ├── src/
 │   └── grading.py                   # math-verify wrapper (LaTeX/tuple-aware grading)
