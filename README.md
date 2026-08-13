@@ -18,7 +18,27 @@ Same-family, math-specialized models were chosen deliberately so that model
 and every other design choice, and [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md)
 for the full research design.
 
-## Results (Phase 2 baseline + Phase 3 heuristic sweep, n=500)
+## Results
+
+**A confidence-based cascade router matches the large model's accuracy
+(80.7%) while cutting GPU-seconds by 42.7% and latency by 26.6% —
+verified on a 150-problem held-out split never used to choose the routing
+threshold.**
+
+![Same accuracy, less compute](results/cost_accuracy_headline_plot.png)
+
+That's the actual answer to this project's research question: not
+"accuracy vs. % of problems escalated" (a proxy), but accuracy vs. real
+cost. The plot's x-axis is GPU-seconds saved relative to always using the
+large model; the shaded region marks where the router matches or beats the
+large-only baseline for less compute than that costs. The matching-accuracy
+point above corresponds to escalating 41.3% of held-out problems to the
+large model. Full threshold-by-threshold numbers, including a second cost
+axis (raw latency, not just GPU-seconds — the two differ because the large
+model's `tensor_parallel_size=2` footprint is a hardware-cost multiplier
+independent of its wall-clock speed): `results/phase3_cost_tradeoff.csv`.
+
+### Baseline accuracy (n=500, full MATH-500)
 
 | | Accuracy | Correct/Total |
 |---|---|---|
@@ -26,30 +46,31 @@ for the full research design.
 | Large only (7B) | 79.0% | 395/500 |
 | Oracle (best of either, per-problem) | 83.4% | 417/500 |
 
-![Accuracy vs. escalation rate](results/router_sweep_plot.png)
-
-Escalating the hardest ~30% of problems (by small-model token-logprob
-confidence) closes most of the gap to the large-only baseline; escalating
-further than that produces almost no additional accuracy for the rest of
-the compute spent — see `results/phase3_sweep.csv` for the full sweep and
-`docs/DECISIONS.md` (2026-08-12 entries) for the run-by-run writeup.
-
-**Methodology note:** the table and plot above are the full-500 numbers
-(thresholds chosen and evaluated on the same 500 problems). A 350/150
+These full-500 numbers (thresholds chosen and evaluated on the same 500
+problems) are the starting point; the headline finding above is the
+stricter, honestly-held-out version of the same story. A 350/150
 train/held-out split (`results/train_test_split.json`, seed=42, stratified
-by subject) was added so Phase 3 could also be checked honestly on unseen
-data — see `docs/DECISIONS.md` (2026-08-13) for the held-out re-evaluation
-and what did (and didn't) change. Short version: no evidence of meaningful
-threshold overfitting, though the 150-problem held-out set is small enough
-that this isn't a strong guarantee. Phase 4's learned router will train on
-the 350-problem split and report final numbers on the 150-problem held-out
-split, for consistency.
+by subject) was added so Phase 3 could be checked on unseen data — see
+`docs/DECISIONS.md` (2026-08-13) for that re-evaluation. Short version: no
+evidence of meaningful threshold overfitting, though a 150-problem held-out
+set is small enough that this isn't a strong guarantee.
+
+**Phase 4 (learned router):** a logistic regression on
+`mean_logprob`/`min_logprob`/`format_validity`/response-length, trained on
+the 350-problem split, did **not** beat the simple mean_logprob heuristic
+above — it lost by roughly 1–2 accuracy points at every matched escalation
+rate on held-out data, most likely because 350 training examples isn't
+much data for a 4-feature model to improve on an already-good single
+signal. Reported here because the project plan commits to honest reporting
+either way — full writeup and coefficients in `docs/DECISIONS.md`
+(2026-08-14).
 
 **Known limitations, stated plainly:** `level` (difficulty) isn't currently
 captured in the result files, only `subject` (recoverable from
 `unique_id`), so a difficulty-stratified breakdown isn't possible yet.
-Phase 4 (a learned router) is the current next step — see
-`docs/PROJECT_PLAN.md` §7 for phase status.
+Latency figures throughout are batch-average (`generation_time_seconds / n`
+from a single batched `vllm` run), not isolated single-request p50/p95 —
+see "Notes" below.
 
 ## Reproducing the Experiments
 
@@ -174,6 +195,12 @@ see `docs/DECISIONS.md`, 2026-08-13), and writes
   reproducible run-to-run — batch composition can affect floating-point
   accumulation order. Small (single-digit-problem) differences between runs
   are expected, not a bug.
+- All latency/cost numbers in Results are **batch-average**
+  (`generation_time_seconds / n` from vllm processing all 500 prompts as
+  one batch), not isolated single-request p50/p95. Real single-request
+  latency would likely be higher for both models, and the ratio between
+  them isn't guaranteed to hold under different batching/serving
+  conditions — directionally correct, not production-serving numbers.
 - If running with a different accelerator (e.g. a single larger GPU instead
   of T4x2), `tensor_parallel_size` and the `CUDA_VISIBLE_DEVICES` values in
   step 4 will need to change accordingly.
@@ -207,3 +234,30 @@ adaptive-llm-routing/
 ├── LICENSE
 └── README.md                        # This file
 ```
+
+## Conclusion
+
+**Yes — the core research question is answered.** A confidence-based
+cascade router retains the large model's accuracy on MATH-500 while
+substantially cutting compute cost, and that claim is backed by numbers
+measured on a held-out split the router's thresholds never saw.
+
+**The numbers that matter:** matching the large-only baseline (**80.7%**
+accuracy) costs **42.7% less GPU-seconds** and **26.6% less latency** than
+always using the large model, by escalating only the 41.3% of problems the
+small model is least confident on.
+
+**Honest caveats:** the held-out set is 150 problems — enough to trust the
+direction of the result, not enough to trust these percentages to fractions
+of a point. Latency/cost figures are batch-average, not isolated
+single-request measurements. A learned router (logistic regression on four
+features) did not beat the simple heuristic at this data size (n=350
+training examples).
+
+**What's still worth testing:** a learned router with more training data or
+richer features (problem difficulty, subject, self-consistency across
+multiple samples) might close the gap to the heuristic or beat it outright;
+true single-request p50/p95 latency would sharpen the cost claim beyond
+batch-average; and the quantization/full-ablation stretch goals in
+`docs/PROJECT_PLAN.md` §7 remain untested. None of that changes the
+headline result — it would refine it.
