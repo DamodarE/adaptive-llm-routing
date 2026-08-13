@@ -133,16 +133,26 @@ the final Phase 2 baseline table.
 ## 2026-08-12 — Phase 2 baseline complete (n=500): final accuracy-vs-compute numbers
 **Result:** Full MATH-500 baseline run (vllm, sequential for small model,
 tensor_parallel_size=2 for large model, math-verify grading):
-- Qwen2.5-Math-1.5B-Instruct: 72.8% (364/500), load 35.8s, gen 143.3s,
+- Qwen2.5-Math-1.5B-Instruct: 73.4% (367/500), load 35.8s, gen 143.3s,
   mean latency 0.29s/problem
 - Qwen2.5-Math-7B-Instruct: 79.0% (395/500), load 55.7s, gen 275.0s,
   mean latency 0.55s/problem
-- Oracle (best of either model per-problem): 83.2% (416/500)
+- Oracle (best of either model per-problem): 83.4% (417/500)
+
+**Correction (2026-08-13):** small-model and oracle counts above were
+originally logged as 72.8% (364/500) and 83.2% (416/500). Corrected against
+the actual committed `results/pilot_small.json`/`results/pilot_large.json`
+(367/500 and 417/500 respectively) during a repo-wide review — likely
+either a transcription slip when these were first reported, or vllm's
+greedy decoding not being perfectly run-to-run reproducible (batch
+composition can affect floating-point accumulation order). The 7B number
+(395/500) was correct as originally logged. Numbers below and in
+`README.md`/`PROJECT_PLAN.md` reflect the corrected values.
 
 **Comparison to n=50 pilot:** all three numbers moved down slightly from
-the 50-problem estimate (76%→72.8%, 84%→79.0%, 88%→83.2%), but the
-qualitative story held — a consistent ~6-point gap between models and a
-real oracle lift (4.2 points) over the large-only baseline.
+the 50-problem estimate (76%→73.4%, 84%→79.0%, 88%→83.4%), but the
+qualitative story held — a consistent ~5.6-point gap between models and a
+real oracle lift (4.4 points) over the large-only baseline.
 
 **Sanity check:** 7B result (79.0%) is in the right neighborhood of its
 published MATH CoT accuracy (83.6%) — close enough to trust the pipeline;

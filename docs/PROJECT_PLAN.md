@@ -65,7 +65,7 @@ planned for Phase 3 (token probability, entropy, answer formatting).
 83.6% MATH). The 1.5B model's plain-CoT score is not — its only published
 number (~80% MATH) uses tool-integrated reasoning, which we won't be using.
 **Phase 2's full MATH-500 run (n=500) produced the real number:** 1.5B CoT
-accuracy is 72.8% (364/500), vs. 7B's 79.0% (395/500) — a ~6-point gap,
+accuracy is 73.4% (367/500), vs. 7B's 79.0% (395/500) — a ~5.6-point gap,
 confirmed large enough to proceed with this model pair. If the CoT accuracy
 gap between 1.5B and 7B on MATH-500 had turned out too small to give
 routing anything meaningful to do, the fallback would have been the

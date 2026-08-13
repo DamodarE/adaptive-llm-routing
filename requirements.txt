@@ -1,0 +1,8 @@
+# Exact versions weren't pinned/recorded on the Kaggle runs this project's
+# results came from (see README "Known Limitations"). These are the
+# packages actually imported by the scripts in notebooks/ and src/.
+vllm
+datasets
+transformers
+math-verify[antlr4_13_2]
+matplotlib
